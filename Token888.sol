@@ -1,8 +1,53 @@
 pragma solidity ^0.4.23;
 
-import "./ITRC20.sol";
-import "./IApproveAndCallFallback.sol";
-import "./Ownable.sol";
+interface ITRC20 {
+    function totalSupply() external view returns (uint);
+
+    function balanceOf(address owner) external view returns (uint);
+
+    function allowance(address owner, address spender) external view returns (uint);
+
+    function transfer(address to, uint value) external returns (bool);
+
+    function approve(address spender, uint value) external returns (bool);
+
+    function transferFrom(address from, address to, uint value) external returns (bool);
+
+    event Transfer(address indexed from, address indexed to, uint value);
+
+    event Approval(address indexed owner, address indexed spender, uint value);
+}
+
+interface IApproveAndCallFallback {
+    function receiveApproval(address _from, uint _value, address _token, bytes _data) external;
+}
+
+contract Ownable {
+    address public owner;
+    address public newOwner;
+
+    event OwnershipTransferred(address indexed _from, address indexed _to);
+
+    constructor() public {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == owner);
+        _;
+    }
+
+    function transferOwnership(address _newOwner) external onlyOwner {
+        newOwner = _newOwner;
+    }
+
+    function acceptOwnership() external {
+        require(msg.sender == newOwner);
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+        newOwner = address(0);
+    }
+}
 
 library SafeMath {
     function add(uint a, uint b) internal pure returns (uint c) {
@@ -34,24 +79,24 @@ contract Token888 is ITRC20, Ownable {
         emit Transfer(address(0), msg.sender, _totalSupply);
     }
 
-    function totalSupply() public view returns (uint) {
+    function totalSupply() external view returns (uint) {
         return _totalSupply;
     }
 
-    function balanceOf(address owner) public view returns (uint) {
+    function balanceOf(address owner) external view returns (uint) {
         return _balances[owner];
     }
 
-    function allowance(address owner, address spender) public view returns (uint) {
+    function allowance(address owner, address spender) external view returns (uint) {
         return _allowed[owner][spender];
     }
 
-    function transfer(address to, uint value) public returns (bool) {
+    function transfer(address to, uint value) external returns (bool) {
         _transfer(msg.sender, to, value);
         return true;
     }
 
-    function approve(address spender, uint value) public returns (bool) {
+    function approve(address spender, uint value) external returns (bool) {
         require(spender != address(0));
 
         _allowed[msg.sender][spender] = value;
@@ -59,14 +104,14 @@ contract Token888 is ITRC20, Ownable {
         return true;
     }
 
-    function transferFrom(address from, address to, uint value) public returns (bool) {
+    function transferFrom(address from, address to, uint value) external returns (bool) {
         _allowed[from][msg.sender] = _allowed[from][msg.sender].sub(value);
         _transfer(from, to, value);
         emit Approval(from, msg.sender, _allowed[from][msg.sender]);
         return true;
     }
 
-    function increaseAllowance(address spender, uint addedValue) public returns (bool) {
+    function increaseAllowance(address spender, uint addedValue) external returns (bool) {
         require(spender != address(0));
 
         _allowed[msg.sender][spender] = _allowed[msg.sender][spender].add(addedValue);
@@ -74,7 +119,7 @@ contract Token888 is ITRC20, Ownable {
         return true;
     }
 
-    function decreaseAllowance(address spender, uint subtractedValue) public returns (bool) {
+    function decreaseAllowance(address spender, uint subtractedValue) external returns (bool) {
         require(spender != address(0));
 
         _allowed[msg.sender][spender] = _allowed[msg.sender][spender].sub(subtractedValue);
@@ -82,7 +127,7 @@ contract Token888 is ITRC20, Ownable {
         return true;
     }
 
-    function _transfer(address from, address to, uint value) internal {
+    function _transfer(address from, address to, uint value) private {
         require(to != address(0));
 
         _balances[from] = _balances[from].sub(value);
@@ -90,13 +135,13 @@ contract Token888 is ITRC20, Ownable {
         emit Transfer(from, to, value);
     }
 
-    function burn(uint value) public {
+    function burn(uint value) external {
         _totalSupply = _totalSupply.sub(value);
         _balances[msg.sender] = _balances[msg.sender].sub(value);
         emit Transfer(msg.sender, address(0), value);
     }
 
-    function approveAndCall(address spender, uint value, bytes memory data) public returns (bool) {
+    function approveAndCall(address spender, uint value, bytes data) external returns (bool) {
         _allowed[msg.sender][spender] = value;
         emit Approval(msg.sender, spender, value);
         IApproveAndCallFallback(spender).receiveApproval(msg.sender, value, address(this), data);
@@ -107,7 +152,7 @@ contract Token888 is ITRC20, Ownable {
         revert();
     }
 
-    function transferAnyTRC20Token(address tokenAddress, uint value) public onlyOwner returns (bool) {
+    function transferAnyTRC20Token(address tokenAddress, uint value) external onlyOwner returns (bool) {
         return ITRC20(tokenAddress).transfer(owner, value);
     }
 }
